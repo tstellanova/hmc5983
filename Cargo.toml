@@ -1,0 +1,29 @@
+[package]
+name = "hmc5893"
+version = "0.1.2"
+authors = ["Todd Stellanova <tstellanova@users.noreply.github.com>"]
+edition = "2018"
+description = "HMC5893 magnetometer driver for embedded hal"
+license = "BSD-3-Clause"
+repository = "https://github.com/tstellanova/hmc5893"
+categories = [
+    "embedded",
+    "hardware-support",
+    "no-std",
+]
+keywords = [
+    "embedded-hal-driver",
+    "HMC5983",
+    "HMC5883",
+    "IST8310",
+    "magnetometer"
+]
+readme = "README.md"
+
+[dependencies]
+embedded-hal = { version = "0.2.3", features = ["unproven"] }
+
+[dev-dependencies]
+embedded-hal-mock = "0.7.1"
+
+
