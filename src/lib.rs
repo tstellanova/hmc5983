@@ -67,7 +67,7 @@ const SRPD_MODE_LOW_POWER: u8 = 0xC0;
 
 const BLOCK_BUF_LEN: usize = 32;
 
-pub struct HMC5893<SI> {
+pub struct HMC5983<SI> {
     pub(crate) sensor_interface: SI,
     /// Buffer for reads and writes to the sensor
     block_buf: [u8; BLOCK_BUF_LEN],
@@ -77,10 +77,9 @@ pub struct HMC5893<SI> {
     srpd_ctrl_reg_set: u8,
 }
 
-impl<SI, SE> HMC5893<SI>
+impl<SI, CommE, PinE> HMC5983<SI>
 where
-    SI: SensorInterface<SensorError = SE>,
-    SE: core::fmt::Debug,
+    SI: SensorInterface<InterfaceError = crate::Error<CommE, PinE>>,
 {
     pub fn new_with_interface(sensor_interface: SI) -> Self {
         Self {
@@ -91,11 +90,11 @@ where
         }
     }
 
-    pub fn init(&mut self) -> Result<(), Error<CommE>> {
+    pub fn init(&mut self) -> Result<(), crate::Error<CommE, PinE>> {
         self.reset()
     }
 
-    fn reset(&mut self) -> Result<(), Error<CommE>> {
+    fn reset(&mut self) -> Result<(), crate::Error<CommE, PinE>> {
         const SRST_POR_FLAG: u8 = 0x01 << 0;
         //const DRDY_POLARITY_FLAG: u8 = 0x01 << 2;
         //const DRDY_ENABLE_FLAG: u8 = 0x01 << 3;
@@ -137,7 +136,7 @@ where
     // }
 
     /// Read a single register
-    fn read_reg(&mut self, reg: u8) -> Result<u8, Error<CommE>> {
+    fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE, PinE>> {
         self.sensor_interface
             .read_block(reg, &mut self.block_buf[..1])?;
         Ok(self.block_buf[0])
@@ -171,12 +170,12 @@ where
     pub fn get_mag_vector(
         &mut self,
         delay_source: &mut impl DelayMs<u8>,
-    ) -> Result<[i16; 3], Error<CommE>> {
+    ) -> Result<[i16; 3], crate::Error<CommE, PinE>> {
         const SINGLE_MEASURE_MODE: u8 = 0x01;
         const XYZ_DATA_LEN: usize = 6;
 
         // Activate single measurement mode
-        self.write_reg(REG_CTRL1, SINGLE_MEASURE_MODE)?;
+        self.sensor_interface.write_reg(REG_CTRL1, SINGLE_MEASURE_MODE)?;
         // Allow sensor time to collect & average data (6 ms min for 16x averaging)
         delay_source.delay_ms(6);
 

@@ -1,7 +1,7 @@
-# hmc5893
+# hmc5983
 
 A rust embedded-hal driver for the 
-Honeywell HMC5893 
+Honeywell HMC5983 
 and similar 3-axis magnetometers
 such as the 
 HMC5883 and the

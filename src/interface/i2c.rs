@@ -1,6 +1,6 @@
 use crate::interface::SensorInterface;
 use crate::Error;
-use embedded_hal::blocking::i2c::Write;
+use embedded_hal as hal;
 
 /// This device supports multiple addresses depending on
 /// the configuration of CAD0 and CAD1
@@ -27,7 +27,7 @@ pub struct I2cInterface<I2C> {
     address: u8,
 }
 
-impl I2cInterface<I2C> {
+impl<I2C> I2cInterface<I2C> {
     pub fn default(i2c_port: I2C) -> Self {
         Self::new(i2c_port, DEFAULT_ADDRESS)
     }
@@ -65,7 +65,7 @@ where
     ) -> Result<(), Self::InterfaceError> {
         let cmd_buf = [reg];
         self.i2c_port
-            .write_read(self.address, &cmd_buf, &mut recv_buf)
+            .write_read(self.address, &cmd_buf, recv_buf)
             .map_err(Error::Comm)?;
         Ok(())
     }

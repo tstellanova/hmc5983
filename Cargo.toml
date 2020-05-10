@@ -1,11 +1,11 @@
 [package]
-name = "hmc5893"
+name = "hmc5983"
 version = "0.1.2"
 authors = ["Todd Stellanova <tstellanova@users.noreply.github.com>"]
 edition = "2018"
-description = "HMC5893 magnetometer driver for embedded hal"
+description = "HMC5983 magnetometer driver for embedded hal"
 license = "BSD-3-Clause"
-repository = "https://github.com/tstellanova/hmc5893"
+repository = "https://github.com/tstellanova/hmc5983"
 categories = [
     "embedded",
     "hardware-support",

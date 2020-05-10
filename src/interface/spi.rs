@@ -1,7 +1,7 @@
 use crate::interface::SensorInterface;
 
 use embedded_hal as hal;
-use hal::digital::v2::{InputPin, OutputPin};
+use hal::digital::v2::{OutputPin};
 
 use crate::Error;
 
@@ -10,7 +10,7 @@ pub struct SpiInterface<SPI, CS> {
     cs: CS,
 }
 
-impl SpiInterface<SPI, CS> {
+impl<SPI, CS> SpiInterface<SPI, CS> {
     pub fn new(spi: SPI, cs: CS) -> Self {
         Self { spi, cs }
     }
@@ -18,13 +18,13 @@ impl SpiInterface<SPI, CS> {
 
 impl<SPI, CS, CommE, PinE> SensorInterface for SpiInterface<SPI, CS>
 where
-    SPI: hal::blocking::spi::Write<Error = CommE>
-        + hal::blocking::spi::Transfer<Error = CommE>,
+    SPI: hal::blocking::spi::Write<u8, Error = CommE>
+        + hal::blocking::spi::Transfer<u8, Error = CommE>,
     CS: OutputPin<Error = PinE>,
     CommE: core::fmt::Debug,
     PinE: core::fmt::Debug,
 {
-    type InterfaceError = crate::Error<CommE>;
+    type InterfaceError = crate::Error<CommE, PinE>;
 
     fn read_block(
         &mut self,
