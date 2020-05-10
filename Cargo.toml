@@ -14,6 +14,7 @@ categories = [
 keywords = [
     "embedded-hal-driver",
     "HMC5983",
+    "QMC6983",
     "HMC5883",
     "magnetometer"
 ]
@@ -21,4 +22,9 @@ readme = "README.md"
 
 [dependencies]
 embedded-hal = { version = "0.2.3", features = ["unproven"] }
+panic-rtt-core = {version="0.1.0", optional=true}
+
+[features]
+default = []
+rttdebug = ["panic-rtt-core"]
 

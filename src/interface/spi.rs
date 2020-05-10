@@ -5,7 +5,16 @@ use hal::digital::v2::{OutputPin};
 
 use crate::Error;
 
+#[cfg(feature = "rttdebug")]
+use panic_rtt_core::rprintln;
+
 const TRANSFER_BUF_LEN: usize = 32;
+
+const DIRECTION_READ: u8 = 1<<7;
+const DIRECTION_WRITE: u8 = 0;
+const MULTI_ADDRESS_INCREMENT: u8 = 1<<6;
+
+
 
 pub struct SpiInterface<SPI, CS> {
     spi: SPI,
@@ -40,9 +49,14 @@ where
         //bit 1: MS bit. When 0 don't increment address: when 1 increment address in multiple read.
         //bit 2-7: address AD(5:0). This is the address field of the indexed register.
 
-        self.transfer_buf[0] = ((reg << 2) & 0xFC) | 0x01 | 0x02;
+        for i in 0..recv_buf.len()+1 {
+            self.transfer_buf[i] = 0;
+        }
+        self.transfer_buf[0] = reg | DIRECTION_READ | MULTI_ADDRESS_INCREMENT;
+
         let rc =
-            self.spi.transfer(self.transfer_buf[..recv_buf.len()].as_mut()).map_err(Error::Comm);
+            self.spi.transfer(self.transfer_buf[..recv_buf.len()+1].as_mut()).map_err(Error::Comm);
+        //release SPI
         self.cs.set_high().map_err(Error::Pin)?;
 
         if rc.is_err() {
@@ -51,6 +65,10 @@ where
 
         let read_slice = rc.unwrap();
         recv_buf.copy_from_slice(&read_slice[..recv_buf.len()]);
+
+        // #[cfg(feature = "rttdebug")]
+        // rprintln!("transfer_buf0 {} recv_buf0 {} ",self.transfer_buf[0],recv_buf[0]);
+
         Ok(())
     }
 
@@ -60,7 +78,8 @@ where
         val: u8,
     ) -> Result<(), Self::InterfaceError> {
         self.cs.set_low().map_err(Error::Pin)?;
-        let block = [reg, val];
+
+        let block = [reg | DIRECTION_WRITE, val];
         let rc = self.spi.write(&block).map_err(Error::Comm);
         self.cs.set_high().map_err(Error::Pin)?;
 

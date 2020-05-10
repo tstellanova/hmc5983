@@ -5,6 +5,10 @@ LICENSE: BSD3 (see LICENSE file)
 
 #![no_std]
 
+
+#[cfg(feature = "rttdebug")]
+use panic_rtt_core::rprintln;
+
 use crate::interface::SensorInterface;
 use embedded_hal as hal;
 use hal::blocking::delay::DelayMs;
@@ -48,9 +52,9 @@ const REG_MAG_DATA_START: u8 = REG_DATA_X;
 /// Identification Register A
 const REG_ID_A: u8 = 0x0A;
 // /// Identification Register B
-// const REG_ID_B: u8 = 0x0B;
+const REG_ID_B: u8 = 0x0B;
 // /// Identification Register C
-// const REG_ID_C: u8 = 0x0C;
+const REG_ID_C: u8 = 0x0C;
 
 // Temperature outputs, HMC5983
 // const REG_TEMP_OUTPUT_MSB: u8 = 0x31;
@@ -89,36 +93,52 @@ where
         const EXPECTED_PROD_ID_A: u8 = 72; //'H';
         const EXPECTED_PROD_ID_B: u8 = 52; //'4';
         const EXPECTED_PROD_ID_C: u8 = 51; //'3';
-
-        // Write CRA (00) – send 0x3C 0x00 0x70 (8-average, 15 Hz default, normal measurement)
-        self.sensor_interface.write_reg(REG_CONFIG_A, 0x70)?;
-        // Set gain: Write CRB (01) – send 0x3C 0x01 0xA0 (Gain=5)
-        self.sensor_interface.write_reg(REG_CONFIG_B, 0xA0)?;
-        // Write Mode (02) – send 0x3C 0x02 0x00 (Continuous-measurement mode)
-        self.sensor_interface.write_reg(REG_CONFIG_C, 0x00)?;
-        delay_source.delay_ms(70);
-
-
         //compare product ID against known product ID
+
         //read three sequential ID bytes
-        self.sensor_interface.read_block(REG_ID_A,&mut self.block_buf[..3])?;
-        if self.block_buf[0] != EXPECTED_PROD_ID_A ||
-            self.block_buf[1] != EXPECTED_PROD_ID_B ||
-            self.block_buf[2] != EXPECTED_PROD_ID_C {
+        let id_a = self.read_reg(REG_ID_A)?;
+        let id_b = self.read_reg(REG_ID_B)?;
+        let id_c = self.read_reg(REG_ID_C)?;
+
+        //self.sensor_interface.read_block(REG_ID_A,&mut self.block_buf[..3])?;
+        if id_a != EXPECTED_PROD_ID_A ||
+            id_b != EXPECTED_PROD_ID_B ||
+            id_c != EXPECTED_PROD_ID_C {
+
+            #[cfg(feature = "rttdebug")]
+            rprintln!("bad ID block: {},{},{}",id_a, id_b, id_c);
+
             return Err(Error::UnknownChipId);
         }
 
+        //1.9 Gauss range -- suggested:  0xA0 (gain 5)
+        let range_config:u8 = 0x40;
+
+        // Write CRA (00) – send 0x3C 0x00 0x70 (8-average, 15 Hz default, normal measurement)
+        self.sensor_interface.write_reg(REG_CONFIG_A, 0x70)?;
+        // Set gain
+        self.sensor_interface.write_reg(REG_CONFIG_B, range_config)?;
+        // Write Mode (02) – send 0x3C 0x02 0x00 (Continuous-measurement mode)
+        self.sensor_interface.write_reg(REG_CONFIG_C, 0x00)?;
+        delay_source.delay_ms(100);
+
+        let confirm_val = self.read_reg(REG_CONFIG_B)?;
+        if confirm_val != range_config {
+            #[cfg(feature = "rttdebug")]
+            rprintln!("expected {} got {}",range_config, confirm_val);
+            return Err(Error::Configuration);
+        }
 
         Ok(())
     }
 
 
     /// Read a single register
-    // fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE, PinE>> {
-    //     self.sensor_interface
-    //         .read_block(reg, &mut self.block_buf[..1])?;
-    //     Ok(self.block_buf[0])
-    // }
+    fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE, PinE>> {
+        self.sensor_interface
+            .read_block(reg, &mut self.block_buf[..1])?;
+        Ok(self.block_buf[0])
+    }
 
     /// Verify that a magnetometer reading is within the expected range.
     /// From section "3.4 Magnetic Sensor Specifications" in datasheet

@@ -7,7 +7,7 @@ such as the
 HMC5883. 
 
 Note that some devices (HMC5983) support both I2C and SPI
-interfaces, while others (eg HMC5883) only
+interfaces, while others (eg HMC5883, QMC5883) only
 support a single interface (I2C).
 
 ## Status
