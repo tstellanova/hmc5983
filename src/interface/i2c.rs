@@ -11,7 +11,7 @@ pub struct I2cInterface<I2C> {
 }
 
 impl<I2C> I2cInterface<I2C> {
-    pub fn new(i2c_port: I2C, address: u8) -> Self {
+    pub fn new(i2c_port: I2C) -> Self {
         Self { i2c_port }
     }
 }

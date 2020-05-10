@@ -40,33 +40,27 @@ const REG_DATA_X: u8 = 0x03;
 // Z-axis output value register
 // const REG_DATA_Z:u8	= 0x07;
 
-const REG_STATUS:u8 = 0x09;
+// const REG_STATUS:u8 = 0x09;
 
 /// Register to read out all three dimensions of mag data
 const REG_MAG_DATA_START: u8 = REG_DATA_X;
 
 /// Identification Register A
 const REG_ID_A: u8 = 0x0A;
-/// Identification Register B
-const REG_ID_B: u8 = 0x0B;
-/// Identification Register C
-const REG_ID_C: u8 = 0x0C;
+// /// Identification Register B
+// const REG_ID_B: u8 = 0x0B;
+// /// Identification Register C
+// const REG_ID_C: u8 = 0x0C;
 
 // Temperature outputs, HMC5983
 // const REG_TEMP_OUTPUT_MSB: u8 = 0x31;
 // const REG_TEMP_OUTPUT_LSB: u8 = 0x32;
-
 
 // Status Register 1
 // const REG_STATUS1: u8 = 0x02;
 // Status Register 2
 // const REG_STATUS2: u8 = 0x09;
 
-/// Average 16 times
-const AVG_CTRL_16X: u8 = 0x24;
-
-/// Set Reset Pulse Duration: Low power mode
-const SRPD_MODE_LOW_POWER: u8 = 0xC0;
 
 const BLOCK_BUF_LEN: usize = 32;
 
@@ -74,10 +68,6 @@ pub struct HMC5983<SI> {
     pub(crate) sensor_interface: SI,
     /// Buffer for reads and writes to the sensor
     block_buf: [u8; BLOCK_BUF_LEN],
-    /// Stores the requested averaging control configuration
-    avg_ctrl_reg_set: u8,
-    /// Stores the requested SRPD control configuration
-    srpd_ctrl_reg_set: u8,
 }
 
 impl<SI, CommE, PinE> HMC5983<SI>
@@ -88,16 +78,14 @@ where
         Self {
             sensor_interface,
             block_buf: [0; BLOCK_BUF_LEN],
-            avg_ctrl_reg_set: 0,
-            srpd_ctrl_reg_set: 0,
         }
     }
 
-    pub fn init(&mut self, delay_source: &mut DelayMs<u8>) -> Result<(), crate::Error<CommE, PinE>> {
+    pub fn init(&mut self, delay_source: &mut impl DelayMs<u8>) -> Result<(), crate::Error<CommE, PinE>> {
         self.reset(delay_source)
     }
 
-    fn reset(&mut self, delay_source: &mut DelayMs<u8>) -> Result<(), crate::Error<CommE, PinE>> {
+    fn reset(&mut self, delay_source: &mut impl DelayMs<u8>) -> Result<(), crate::Error<CommE, PinE>> {
         const EXPECTED_PROD_ID_A: u8 = 72; //'H';
         const EXPECTED_PROD_ID_B: u8 = 52; //'4';
         const EXPECTED_PROD_ID_C: u8 = 51; //'3';
@@ -124,26 +112,13 @@ where
         Ok(())
     }
 
-    ///	 Write a block to a specific register
-    /// reg: The register address to write to
-    /// send_buf: The buffer to send
-    // fn write_block(&mut self, reg: u8, send_buf: &[u8]) -> Result<(), Error<CommE>>{
-    //     self.block_buf[0] = reg;
-    //     //this panics if send_buf is bigger than expected:
-    //     assert!(send_buf.len() <= self.block_buf.len() + 1);
-    //     self.block_buf[1..send_buf.len()+1].copy_from_slice(send_buf);
-    //     self.i2c_port
-    //         .write(self.address, &self.block_buf)
-    //         .map_err(Error::Comm)?;
-    //     Ok(())
-    // }
 
     /// Read a single register
-    fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE, PinE>> {
-        self.sensor_interface
-            .read_block(reg, &mut self.block_buf[..1])?;
-        Ok(self.block_buf[0])
-    }
+    // fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE, PinE>> {
+    //     self.sensor_interface
+    //         .read_block(reg, &mut self.block_buf[..1])?;
+    //     Ok(self.block_buf[0])
+    // }
 
     /// Verify that a magnetometer reading is within the expected range.
     /// From section "3.4 Magnetic Sensor Specifications" in datasheet
@@ -172,9 +147,7 @@ where
 
     pub fn get_mag_vector(
         &mut self,
-        delay_source: &mut impl DelayMs<u8>,
     ) -> Result<[i16; 3], crate::Error<CommE, PinE>> {
-        const SINGLE_MEASURE_MODE: u8 = 0x01;
         const XYZ_DATA_LEN: usize = 6;
 
         //get the actual data from the sensor
