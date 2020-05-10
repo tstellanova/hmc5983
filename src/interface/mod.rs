@@ -10,8 +10,8 @@ pub trait SensorInterface {
     type InterfaceError;
 
     /// Read a block from a specific register
-    /// reg: The register address to read from
-    /// recv_buf: The buffer to receive into
+    /// `reg`: The register address to read from
+    /// `recv_buf`: The buffer to receive into
     fn read_block(
         &mut self,
         reg: u8,

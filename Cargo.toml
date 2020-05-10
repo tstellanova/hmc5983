@@ -15,15 +15,10 @@ keywords = [
     "embedded-hal-driver",
     "HMC5983",
     "HMC5883",
-    "IST8310",
     "magnetometer"
 ]
 readme = "README.md"
 
 [dependencies]
 embedded-hal = { version = "0.2.3", features = ["unproven"] }
-
-[dev-dependencies]
-embedded-hal-mock = "0.7.1"
-
 

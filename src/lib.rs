@@ -29,10 +29,10 @@ pub enum Error<CommE, PinE> {
     UnknownChipId,
 }
 
-/// Who Am I (WAI) register
-pub const REG_WAI: u8 = 0x00;
-// Info register
-// const REG_INFO:u8 = 0x01;
+const REG_CONFIG_A: u8 = 0x00;
+const REG_CONFIG_B: u8 = 0x01;
+const REG_CONFIG_C: u8 = 0x02;
+
 /// X-axis output value register
 const REG_DATA_X: u8 = 0x03;
 // Y-axis output value register
@@ -40,19 +40,22 @@ const REG_DATA_X: u8 = 0x03;
 // Z-axis output value register
 // const REG_DATA_Z:u8	= 0x07;
 
+const REG_STATUS:u8 = 0x09;
+
 /// Register to read out all three dimensions of mag data
 const REG_MAG_DATA_START: u8 = REG_DATA_X;
 
-/// Control setting register 1
-const REG_CTRL1: u8 = 0x0A;
-/// Control setting register 2
-pub const REG_CTRL2: u8 = 0x0B;
+/// Identification Register A
+const REG_ID_A: u8 = 0x0A;
+/// Identification Register B
+const REG_ID_B: u8 = 0x0B;
+/// Identification Register C
+const REG_ID_C: u8 = 0x0C;
 
-/// Averaging control register
-pub const REG_AVG_CTRL: u8 = 0x41;
+// Temperature outputs, HMC5983
+// const REG_TEMP_OUTPUT_MSB: u8 = 0x31;
+// const REG_TEMP_OUTPUT_LSB: u8 = 0x32;
 
-/// Sensor Selection register (mode select)
-pub const REG_SENS_MODE_SELECT: u8 = 0x42;
 
 // Status Register 1
 // const REG_STATUS1: u8 = 0x02;
@@ -90,33 +93,33 @@ where
         }
     }
 
-    pub fn init(&mut self) -> Result<(), crate::Error<CommE, PinE>> {
-        self.reset()
+    pub fn init(&mut self, delay_source: &mut DelayMs<u8>) -> Result<(), crate::Error<CommE, PinE>> {
+        self.reset(delay_source)
     }
 
-    fn reset(&mut self) -> Result<(), crate::Error<CommE, PinE>> {
-        const SRST_POR_FLAG: u8 = 0x01 << 0;
-        //const DRDY_POLARITY_FLAG: u8 = 0x01 << 2;
-        //const DRDY_ENABLE_FLAG: u8 = 0x01 << 3;
-        const EXPECTED_PROD_ID: u8 = 0x10;
-        // perform power-on-reset POR sequence
-        self.sensor_interface.write_reg(REG_CTRL2, SRST_POR_FLAG)?;
+    fn reset(&mut self, delay_source: &mut DelayMs<u8>) -> Result<(), crate::Error<CommE, PinE>> {
+        const EXPECTED_PROD_ID_A: u8 = 72; //'H';
+        const EXPECTED_PROD_ID_B: u8 = 52; //'4';
+        const EXPECTED_PROD_ID_C: u8 = 51; //'3';
 
-        //configure averaging
-        self.avg_ctrl_reg_set = AVG_CTRL_16X;
-        self.sensor_interface
-            .write_reg(REG_AVG_CTRL, self.avg_ctrl_reg_set)?;
+        // Write CRA (00) – send 0x3C 0x00 0x70 (8-average, 15 Hz default, normal measurement)
+        self.sensor_interface.write_reg(REG_CONFIG_A, 0x70)?;
+        // Set gain: Write CRB (01) – send 0x3C 0x01 0xA0 (Gain=5)
+        self.sensor_interface.write_reg(REG_CONFIG_B, 0xA0)?;
+        // Write Mode (02) – send 0x3C 0x02 0x00 (Continuous-measurement mode)
+        self.sensor_interface.write_reg(REG_CONFIG_C, 0x00)?;
+        delay_source.delay_ms(70);
 
-        //configure SRPD
-        self.srpd_ctrl_reg_set = SRPD_MODE_LOW_POWER;
-        self.sensor_interface
-            .write_reg(REG_SENS_MODE_SELECT, self.srpd_ctrl_reg_set)?;
 
         //compare product ID against known product ID
-        let product_id = self.read_reg(REG_WAI)?;
-        if product_id != EXPECTED_PROD_ID {
+        //read three sequential ID bytes
+        self.sensor_interface.read_block(REG_ID_A,&mut self.block_buf[..3])?;
+        if self.block_buf[0] != EXPECTED_PROD_ID_A ||
+            self.block_buf[1] != EXPECTED_PROD_ID_B ||
+            self.block_buf[2] != EXPECTED_PROD_ID_C {
             return Err(Error::UnknownChipId);
         }
+
 
         Ok(())
     }
@@ -173,11 +176,6 @@ where
     ) -> Result<[i16; 3], crate::Error<CommE, PinE>> {
         const SINGLE_MEASURE_MODE: u8 = 0x01;
         const XYZ_DATA_LEN: usize = 6;
-
-        // Activate single measurement mode
-        self.sensor_interface.write_reg(REG_CTRL1, SINGLE_MEASURE_MODE)?;
-        // Allow sensor time to collect & average data (6 ms min for 16x averaging)
-        delay_source.delay_ms(6);
 
         //get the actual data from the sensor
         self.sensor_interface.read_block(

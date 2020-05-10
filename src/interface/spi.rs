@@ -5,14 +5,17 @@ use hal::digital::v2::{OutputPin};
 
 use crate::Error;
 
+const TRANSFER_BUF_LEN: usize = 32;
+
 pub struct SpiInterface<SPI, CS> {
     spi: SPI,
     cs: CS,
+    transfer_buf: [u8; TRANSFER_BUF_LEN],
 }
 
 impl<SPI, CS> SpiInterface<SPI, CS> {
     pub fn new(spi: SPI, cs: CS) -> Self {
-        Self { spi, cs }
+        Self { spi, cs, transfer_buf: [0; TRANSFER_BUF_LEN] }
     }
 }
 
@@ -32,18 +35,23 @@ where
         recv_buf: &mut [u8],
     ) -> Result<(), Self::InterfaceError> {
         self.cs.set_low().map_err(Error::Pin)?;
+
+        //bit 0: READ bit. The value is 1 on read, 0 on write.
+        //bit 1: MS bit. When 0 don't increment address: when 1 increment address in multiple read.
+        //bit 2-7: address AD(5:0). This is the address field of the indexed register.
+
+        self.transfer_buf[0] = ((reg << 2) & 0xFC) | 0x01 | 0x02;
+        let rc =
+            self.spi.transfer(self.transfer_buf[..recv_buf.len()].as_mut()).map_err(Error::Comm);
         self.cs.set_high().map_err(Error::Pin)?;
 
-        unimplemented!()
+        if rc.is_err() {
+            return Err(rc.unwrap_err());
+        }
 
-        // self.cs.set_high().map_err(Error::Pin)?;
-        // if rc.is_err() {
-        //     return Err(rc.unwrap_err());
-        // }
-        //
-        // let max_len = if recv_buf
-        //
-        // Ok(())
+        let read_slice = rc.unwrap();
+        recv_buf.copy_from_slice(&read_slice[..recv_buf.len()]);
+        Ok(())
     }
 
     fn write_reg(
@@ -51,15 +59,15 @@ where
         reg: u8,
         val: u8,
     ) -> Result<(), Self::InterfaceError> {
-        if let Ok(_) = self.cs.set_low() {
-            let block = [reg, val];
-            let rc = self.spi.write(&block).map_err(Error::Comm);
-            let _ = self.cs.set_high();
+        self.cs.set_low().map_err(Error::Pin)?;
+        let block = [reg, val];
+        let rc = self.spi.write(&block).map_err(Error::Comm);
+        self.cs.set_high().map_err(Error::Pin)?;
 
-            if rc.is_err() {
-                return Err(rc.unwrap_err());
-            }
+        if rc.is_err() {
+            return Err(rc.unwrap_err());
         }
+
         Ok(())
     }
 }

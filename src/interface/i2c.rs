@@ -2,38 +2,17 @@ use crate::interface::SensorInterface;
 use crate::Error;
 use embedded_hal as hal;
 
-/// This device supports multiple addresses depending on
-/// the configuration of CAD0 and CAD1
-/// The format of these address is ADDR_CAD0_CAD1_nBIT,
-/// Where 0 indicates tie to ground, 1 to Vdd
-/// If CAD0 and CAD1 are floating, I2C address will be 0x0E / 0x1C.
-pub const ADDR_0_0_7BIT: u8 = 0x0C;
-pub const ADDR_0_1_7BIT: u8 = 0x0D;
-pub const ADDR_1_0_7BIT: u8 = 0x0E;
-pub const ADDR_1_1_7BIT: u8 = 0x0F;
-pub const ADDR_7BIT_DEFAULT: u8 = 0x0E;
 
-pub const ADDR_0_0_8BIT: u8 = 0x18;
-pub const ADDR_0_1_8BIT: u8 = 0x1A;
-pub const ADDR_1_0_8BIT: u8 = 0x1C;
-pub const ADDR_1_1_8BIT: u8 = 0x1E;
-pub const ADDR_8BIT_DEFAULT: u8 = 0x1C;
-
-/// The default 7-bit i2c address when CAD0 and CAD1 are left floating
-pub const DEFAULT_ADDRESS: u8 = ADDR_7BIT_DEFAULT;
+const I2C_READ_ADDRESS: u8 = 0x3D;
+const I2C_WRITE_ADDRESS: u8 = 0x3C;
 
 pub struct I2cInterface<I2C> {
     i2c_port: I2C,
-    address: u8,
 }
 
 impl<I2C> I2cInterface<I2C> {
-    pub fn default(i2c_port: I2C) -> Self {
-        Self::new(i2c_port, DEFAULT_ADDRESS)
-    }
-
     pub fn new(i2c_port: I2C, address: u8) -> Self {
-        Self { i2c_port, address }
+        Self { i2c_port }
     }
 }
 
@@ -53,7 +32,7 @@ where
     ) -> Result<(), Self::InterfaceError> {
         let write_buf = [reg, val];
         self.i2c_port
-            .write(self.address, &write_buf)
+            .write(I2C_WRITE_ADDRESS, &write_buf)
             .map_err(Error::Comm)?;
         Ok(())
     }
@@ -65,7 +44,7 @@ where
     ) -> Result<(), Self::InterfaceError> {
         let cmd_buf = [reg];
         self.i2c_port
-            .write_read(self.address, &cmd_buf, recv_buf)
+            .write_read(I2C_READ_ADDRESS, &cmd_buf, recv_buf)
             .map_err(Error::Comm)?;
         Ok(())
     }
