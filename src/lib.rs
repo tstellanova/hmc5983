@@ -51,17 +51,16 @@ const REG_MAG_DATA_START: u8 = REG_DATA_X;
 
 /// Identification Register A
 const REG_ID_A: u8 = 0x0A;
-// /// Identification Register B
+/// Identification Register B
 const REG_ID_B: u8 = 0x0B;
-// /// Identification Register C
+/// Identification Register C
 const REG_ID_C: u8 = 0x0C;
 
 // Temperature outputs, HMC5983
 // const REG_TEMP_OUTPUT_MSB: u8 = 0x31;
 // const REG_TEMP_OUTPUT_LSB: u8 = 0x32;
 
-// Status Register 1
-// const REG_STATUS1: u8 = 0x02;
+
 // Status Register 2
 // const REG_STATUS2: u8 = 0x09;
 
@@ -90,28 +89,31 @@ where
     }
 
     fn reset(&mut self, delay_source: &mut impl DelayMs<u8>) -> Result<(), crate::Error<CommE, PinE>> {
+        #[cfg(feature = "rttdebug")]
+        for reg in 0x00..0x0D {
+            let val = self.read_reg(reg)?;
+            rprintln!("0x{:0x} : {} ", reg, val);
+        }
+
         const EXPECTED_PROD_ID_A: u8 = 72; //'H';
         const EXPECTED_PROD_ID_B: u8 = 52; //'4';
         const EXPECTED_PROD_ID_C: u8 = 51; //'3';
         //compare product ID against known product ID
 
-        //read three sequential ID bytes
-        let id_a = self.read_reg(REG_ID_A)?;
-        let id_b = self.read_reg(REG_ID_B)?;
-        let id_c = self.read_reg(REG_ID_C)?;
-
-        //self.sensor_interface.read_block(REG_ID_A,&mut self.block_buf[..3])?;
-        if id_a != EXPECTED_PROD_ID_A ||
-            id_b != EXPECTED_PROD_ID_B ||
-            id_c != EXPECTED_PROD_ID_C {
+        //read the product identifiers
+        self.sensor_interface.read_block(REG_ID_A,&mut self.block_buf[..3])?;
+        if self.block_buf[0] != EXPECTED_PROD_ID_A ||
+            self.block_buf[1] != EXPECTED_PROD_ID_B ||
+            self.block_buf[2] != EXPECTED_PROD_ID_C {
 
             #[cfg(feature = "rttdebug")]
-            rprintln!("bad ID block: {},{},{}",id_a, id_b, id_c);
+            rprintln!("bad ID block: {},{},{}",
+                self.block_buf[0], self.block_buf[1], self.block_buf[2]);
 
             return Err(Error::UnknownChipId);
         }
 
-        //1.9 Gauss range -- suggested:  0xA0 (gain 5)
+        // 1.9 Gauss range -- suggested:  0xA0 (gain 5)
         let range_config:u8 = 0x40;
 
         // Write CRA (00) – send 0x3C 0x00 0x70 (8-average, 15 Hz default, normal measurement)
@@ -125,7 +127,7 @@ where
         let confirm_val = self.read_reg(REG_CONFIG_B)?;
         if confirm_val != range_config {
             #[cfg(feature = "rttdebug")]
-            rprintln!("expected {} got {}",range_config, confirm_val);
+            rprintln!("range bad: expected {} got {}",range_config, confirm_val);
             return Err(Error::Configuration);
         }
 
@@ -182,6 +184,9 @@ where
         ];
 
         if !Self::reading_in_range(&sample_i16) {
+            #[cfg(feature = "rttdebug")]
+            rprintln!("bad reading?");
+
             return Err(Error::OutOfRange);
         }
 

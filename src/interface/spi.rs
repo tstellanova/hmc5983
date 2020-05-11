@@ -45,18 +45,20 @@ where
     ) -> Result<(), Self::InterfaceError> {
         self.cs.set_low().map_err(Error::Pin)?;
 
+        // the first byte in SPI receive is garbage
+        let total_read_bytes = recv_buf.len() + 1;
         //bit 0: READ bit. The value is 1 on read, 0 on write.
         //bit 1: MS bit. When 0 don't increment address: when 1 increment address in multiple read.
         //bit 2-7: address AD(5:0). This is the address field of the indexed register.
 
-        for i in 0..recv_buf.len()+1 {
+        for i in 0..total_read_bytes {
             self.transfer_buf[i] = 0;
         }
         self.transfer_buf[0] = reg | DIRECTION_READ | MULTI_ADDRESS_INCREMENT;
 
         let rc =
-            self.spi.transfer(self.transfer_buf[..recv_buf.len()+1].as_mut()).map_err(Error::Comm);
-        //release SPI
+            self.spi.transfer(self.transfer_buf[..total_read_bytes].as_mut()).map_err(Error::Comm);
+        //release SPI bus
         self.cs.set_high().map_err(Error::Pin)?;
 
         if rc.is_err() {
@@ -64,10 +66,10 @@ where
         }
 
         let read_slice = rc.unwrap();
-        recv_buf.copy_from_slice(&read_slice[..recv_buf.len()]);
+        recv_buf.copy_from_slice(&read_slice[1..total_read_bytes]);
 
         // #[cfg(feature = "rttdebug")]
-        // rprintln!("transfer_buf0 {} recv_buf0 {} ",self.transfer_buf[0],recv_buf[0]);
+        // rprintln!("read_slice: {:?}",read_slice);
 
         Ok(())
     }
