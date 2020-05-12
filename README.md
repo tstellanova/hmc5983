@@ -13,7 +13,7 @@ support a single interface (I2C).
 ## Status
 
 - [x] Basic i2c setup support
-- [ ] Basic spi setup support
+- [x] Basic spi setup support
 - [x] read of main xyz magnetometer vector
 - [ ] Tests with mock embedded hal
 - [ ] Periodic configuration check (for poor i2c connections)

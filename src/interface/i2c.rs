@@ -3,8 +3,10 @@ use crate::Error;
 use embedded_hal as hal;
 
 
-const I2C_READ_ADDRESS: u8 = 0x3D;
-const I2C_WRITE_ADDRESS: u8 = 0x3C;
+// #[cfg(feature = "rttdebug")]
+// use panic_rtt_core::rprintln;
+
+const I2C_ADDRESS: u8 = 0x1E;
 
 pub struct I2cInterface<I2C> {
     i2c_port: I2C,
@@ -31,8 +33,12 @@ where
         val: u8,
     ) -> Result<(), Self::InterfaceError> {
         let write_buf = [reg, val];
+
+        // #[cfg(feature = "rttdebug")]
+        // rprintln!("write: {:?}",&write_buf);
+
         self.i2c_port
-            .write(I2C_WRITE_ADDRESS, &write_buf)
+            .write(I2C_ADDRESS, &write_buf)
             .map_err(Error::Comm)?;
         Ok(())
     }
@@ -42,10 +48,17 @@ where
         reg: u8,
         recv_buf: &mut [u8],
     ) -> Result<(), Self::InterfaceError> {
+
+        // #[cfg(feature = "rttdebug")]
+        // rprintln!("read_block: 0x{:0x} [{}]", reg, recv_buf.len());
+
         let cmd_buf = [reg];
         self.i2c_port
-            .write_read(I2C_READ_ADDRESS, &cmd_buf, recv_buf)
+            .write_read(I2C_ADDRESS, &cmd_buf, recv_buf)
             .map_err(Error::Comm)?;
+
+        // #[cfg(feature = "rttdebug")]
+        // rprintln!("recv_buf: {:?}", &recv_buf);
         Ok(())
     }
 }

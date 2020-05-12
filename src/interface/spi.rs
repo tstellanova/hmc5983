@@ -42,7 +42,8 @@ where
         &mut self,
         reg: u8,
         recv_buf: &mut [u8],
-    ) -> Result<(), Self::InterfaceError> {
+    ) -> Result<(), Self::InterfaceError>
+    {
         self.cs.set_low().map_err(Error::Pin)?;
 
         // the first byte in SPI receive is garbage

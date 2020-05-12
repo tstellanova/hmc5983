@@ -140,9 +140,10 @@ where
 
     fn reset(&mut self, delay_source: &mut impl DelayMs<u8>) -> Result<(), crate::Error<CommE, PinE>> {
 
-        #[cfg(feature = "rttdebug")]
+        //wakeup the chip
         for reg in 0x00..0x0D {
             let val = self.read_reg(reg)?;
+            #[cfg(feature = "rttdebug")]
             rprintln!("0x{:0x} : {} ", reg, val);
         }
 
