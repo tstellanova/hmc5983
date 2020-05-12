@@ -14,7 +14,6 @@ categories = [
 keywords = [
     "embedded-hal-driver",
     "HMC5983",
-    "QMC6983",
     "HMC5883",
     "magnetometer"
 ]
