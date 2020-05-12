@@ -6,7 +6,7 @@ LICENSE: BSD3 (see LICENSE file)
 use crate::interface::SensorInterface;
 
 use embedded_hal as hal;
-use hal::digital::v2::{OutputPin};
+use hal::digital::v2::OutputPin;
 
 use crate::Error;
 
@@ -15,11 +15,9 @@ use panic_rtt_core::rprintln;
 
 const TRANSFER_BUF_LEN: usize = 32;
 
-const DIRECTION_READ: u8 = 1<<7;
+const DIRECTION_READ: u8 = 1 << 7;
 const DIRECTION_WRITE: u8 = 0;
-const MULTI_ADDRESS_INCREMENT: u8 = 1<<6;
-
-
+const MULTI_ADDRESS_INCREMENT: u8 = 1 << 6;
 
 pub struct SpiInterface<SPI, CS> {
     spi: SPI,
@@ -29,7 +27,11 @@ pub struct SpiInterface<SPI, CS> {
 
 impl<SPI, CS> SpiInterface<SPI, CS> {
     pub fn new(spi: SPI, cs: CS) -> Self {
-        Self { spi, cs, transfer_buf: [0; TRANSFER_BUF_LEN] }
+        Self {
+            spi,
+            cs,
+            transfer_buf: [0; TRANSFER_BUF_LEN],
+        }
     }
 }
 
@@ -47,8 +49,7 @@ where
         &mut self,
         reg: u8,
         recv_buf: &mut [u8],
-    ) -> Result<(), Self::InterfaceError>
-    {
+    ) -> Result<(), Self::InterfaceError> {
         self.cs.set_low().map_err(Error::Pin)?;
 
         // the first byte in SPI receive is garbage
@@ -62,8 +63,10 @@ where
         }
         self.transfer_buf[0] = reg | DIRECTION_READ | MULTI_ADDRESS_INCREMENT;
 
-        let rc =
-            self.spi.transfer(self.transfer_buf[..total_read_bytes].as_mut()).map_err(Error::Comm);
+        let rc = self
+            .spi
+            .transfer(self.transfer_buf[..total_read_bytes].as_mut())
+            .map_err(Error::Comm);
         //release SPI bus
         self.cs.set_high().map_err(Error::Pin)?;
 

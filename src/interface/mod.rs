@@ -24,5 +24,9 @@ pub trait SensorInterface {
     ) -> Result<(), Self::InterfaceError>;
 
     /// Write a value to a register
-    fn write_reg(&mut self, reg: u8, val: u8) -> Result<(), Self::InterfaceError>;
+    fn write_reg(
+        &mut self,
+        reg: u8,
+        val: u8,
+    ) -> Result<(), Self::InterfaceError>;
 }

@@ -7,7 +7,6 @@ use crate::interface::SensorInterface;
 use crate::Error;
 use embedded_hal as hal;
 
-
 // #[cfg(feature = "rttdebug")]
 // use panic_rtt_core::rprintln;
 
@@ -53,7 +52,6 @@ where
         reg: u8,
         recv_buf: &mut [u8],
     ) -> Result<(), Self::InterfaceError> {
-
         // #[cfg(feature = "rttdebug")]
         // rprintln!("read_block: 0x{:0x} [{}]", reg, recv_buf.len());
 

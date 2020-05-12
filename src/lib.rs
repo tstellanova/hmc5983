@@ -5,7 +5,6 @@ LICENSE: BSD3 (see LICENSE file)
 
 #![no_std]
 
-
 #[cfg(feature = "rttdebug")]
 use panic_rtt_core::rprintln;
 
@@ -33,9 +32,8 @@ pub enum Error<CommE, PinE> {
     UnknownChipId,
 }
 
-/// Gain settings
-/// gain in LSb/Gauss
-/// One tesla (T) is equal to 104 gauss,
+/// Gain settings ( in LSb/Gauss )
+/// One tesla (T) is equal to 104 gauss
 #[repr(u8)]
 pub enum GainSetting {
     ///± 0.88 Ga  / 0.73 (mGa/LSb)
@@ -56,71 +54,44 @@ pub enum GainSetting {
     Gain0230 = 0b11100000,
 }
 
+/// Output Data Rate settings in Hz
 #[repr(u8)]
 pub enum OdrSetting {
-    Odr_0_75_Hz = 0b000,
-    Odr_1_5_Hz = 0b001,
-    Odr_3_0_Hz = 0b010,
-    Odr_7_5_Hz = 0b011,
-    Odr_15_0_Hz = 0b100,
-    Odr_30_0_Hz = 0b110,
-    Odr_220_0_Hz = 0b111,
+    Odr0_75Hz = 0b000,
+    Odr1_5Hz = 0b001,
+    Odr3_0Hz = 0b010,
+    Odr7_5Hz = 0b011,
+    Odr15_0Hz = 0b100,
+    Odr30_0Hz = 0b110,
+    Odr220_0Hz = 0b111,
 }
 
+/// Configuring sample averaging
 #[repr(u8)]
 pub enum SampleAvgSetting {
     AvgSamples1 = 0b00,
     AvgSamples2 = 0b01,
     AvgSamples4 = 0b10,
+    /// Average 8 samples
     AvgSamples8 = 0b11,
 }
 
+/// Measurement mode settings
 #[repr(u8)]
 pub enum MeasurementModeSetting {
     NormalMode = 0b00,
+    /// Positive bias current
     PositiveBias = 0b01,
+    /// Negative bias current-- unsupported on HMC5883
     NegativeBias = 0b10,
+    /// Temperature sensor only -- unsupported on HMC5883
     TemperatureOnly = 0b11,
 }
-
-const REG_CONFIG_A: u8 = 0x00;
-const REG_CONFIG_B: u8 = 0x01;
-const REG_CONFIG_C: u8 = 0x02;
-
-/// X-axis output value register
-const REG_DATA_X: u8 = 0x03;
-// Y-axis output value register
-// const REG_DATA_Y:u8 = 0x05;
-// Z-axis output value register
-// const REG_DATA_Z:u8	= 0x07;
-
-// const REG_STATUS:u8 = 0x09;
-
-/// Register to read out all three dimensions of mag data
-const REG_MAG_DATA_START: u8 = REG_DATA_X;
-
-/// Identification Register A
-const REG_ID_A: u8 = 0x0A;
-/// Identification Register B
-const REG_ID_B: u8 = 0x0B;
-/// Identification Register C
-const REG_ID_C: u8 = 0x0C;
-
-// Temperature outputs, HMC5983
-// const REG_TEMP_OUTPUT_MSB: u8 = 0x31;
-// const REG_TEMP_OUTPUT_LSB: u8 = 0x32;
-
-// Status Register 2
-// const REG_STATUS2: u8 = 0x09;
-
-const BLOCK_BUF_LEN: usize = 32;
 
 pub struct HMC5983<SI> {
     pub(crate) sensor_interface: SI,
     /// Buffer for reads and writes to the sensor
     block_buf: [u8; BLOCK_BUF_LEN],
-
-
 }
 
 impl<SI, CommE, PinE> HMC5983<SI>
@@ -134,82 +105,95 @@ where
         }
     }
 
-    pub fn init(&mut self, delay_source: &mut impl DelayMs<u8>) -> Result<(), crate::Error<CommE, PinE>> {
+    pub fn init(
+        &mut self,
+        delay_source: &mut impl DelayMs<u8>,
+    ) -> Result<(), crate::Error<CommE, PinE>> {
         self.reset(delay_source)
     }
 
-    fn reset(&mut self, delay_source: &mut impl DelayMs<u8>) -> Result<(), crate::Error<CommE, PinE>> {
-
+    fn reset(
+        &mut self,
+        delay_source: &mut impl DelayMs<u8>,
+    ) -> Result<(), crate::Error<CommE, PinE>> {
         //wakeup the chip
         for reg in 0x00..0x0D {
-            let val = self.read_reg(reg)?;
+            let _val = self.read_reg(reg)?;
             #[cfg(feature = "rttdebug")]
-            rprintln!("0x{:0x} : {} ", reg, val);
+            rprintln!("0x{:0x} : {} ", reg, _val);
         }
 
         const EXPECTED_PROD_ID_A: u8 = 72; //'H';
         const EXPECTED_PROD_ID_B: u8 = 52; //'4';
         const EXPECTED_PROD_ID_C: u8 = 51; //'3';
-        //compare product ID against known product ID
-        //read the product identifiers
-        self.sensor_interface.read_block(REG_ID_A,&mut self.block_buf[..3])?;
-        if self.block_buf[0] != EXPECTED_PROD_ID_A ||
-            self.block_buf[1] != EXPECTED_PROD_ID_B ||
-            self.block_buf[2] != EXPECTED_PROD_ID_C {
-
+                                           //compare product ID against known product ID
+                                           //read the product identifiers
+        self.sensor_interface
+            .read_block(REG_ID_A, &mut self.block_buf[..3])?;
+        if self.block_buf[0] != EXPECTED_PROD_ID_A
+            || self.block_buf[1] != EXPECTED_PROD_ID_B
+            || self.block_buf[2] != EXPECTED_PROD_ID_C
+        {
             #[cfg(feature = "rttdebug")]
-            rprintln!("bad ID block: {},{},{}",
-                self.block_buf[0], self.block_buf[1], self.block_buf[2]);
+            rprintln!(
+                "bad ID block: {},{},{}",
+                self.block_buf[0],
+                self.block_buf[1],
+                self.block_buf[2]
+            );
 
             return Err(Error::UnknownChipId);
         }
 
-        // Write CRA (00) – send 0x3C 0x00 0x70 (8-average, 15 Hz default, normal measurement)
-        // REG_CONFIG_A can set the Output Data Rate (ODR)
-        //
-
-        self.set_all_config_a(MeasurementModeSetting::NormalMode,
-        OdrSetting::Odr_30_0_Hz,
+        self.set_all_config_a(
+            MeasurementModeSetting::NormalMode,
+            OdrSetting::Odr30_0Hz,
             SampleAvgSetting::AvgSamples8,
-            true
+            true,
         )?;
 
         self.set_gain(GainSetting::Gain0820)?;
-        // Write Mode (02) – send 0x3C 0x02 0x00 (Continuous-measurement mode)
-        self.sensor_interface.write_reg(REG_CONFIG_C, 0x00)?;
+        // (Continuous-measurement mode)
+        self.sensor_interface.write_reg(
+            REG_CONFIG_C,
+            MeasurementModeSetting::NormalMode as u8,
+        )?;
         delay_source.delay_ms(100);
 
         Ok(())
     }
 
-    pub fn set_gain(&mut self, gain: GainSetting) -> Result<(), crate::Error<CommE, PinE>>  {
+    /// Set the mag gain, which determines the range
+    pub fn set_gain(
+        &mut self,
+        gain: GainSetting,
+    ) -> Result<(), crate::Error<CommE, PinE>> {
         let gain_val: u8 = gain as u8;
         self.sensor_interface.write_reg(REG_CONFIG_B, gain_val)?;
 
         let confirm_val = self.read_reg(REG_CONFIG_B)?;
         if confirm_val != gain_val {
             #[cfg(feature = "rttdebug")]
-            rprintln!("gain bad: expected {} got {}",gain_val, confirm_val);
+            rprintln!("gain bad: expected {} got {}", gain_val, confirm_val);
             return Err(Error::Configuration);
         }
         Ok(())
     }
 
-    pub fn set_all_config_a(&mut self,
+    /// Set all of the Config A register settings
+    pub fn set_all_config_a(
+        &mut self,
         mode: MeasurementModeSetting,
         odr: OdrSetting,
         averaging: SampleAvgSetting,
-        temp_enabled: bool) -> Result<(), crate::Error<CommE, PinE>> {
-
-        let new_val =
-            (if temp_enabled { (1 << 7) } else {0}) &
-                ((averaging as u8) << 6) &
-                ((odr as u8) << 4) &
-                ((mode as u8) << 2);
+        temp_enabled: bool,
+    ) -> Result<(), crate::Error<CommE, PinE>> {
+        let new_val = (if temp_enabled { (1 << 7) } else { 0 })
+            & ((averaging as u8) << 6)
+            & ((odr as u8) << 4)
+            & ((mode as u8) << 2);
         self.sensor_interface.write_reg(REG_CONFIG_A, new_val)
     }
-
-
 
     /// Read a single register
     fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE, PinE>> {
@@ -247,7 +231,7 @@ where
     ) -> Result<[i16; 3], crate::Error<CommE, PinE>> {
         const XYZ_DATA_LEN: usize = 6;
 
-        //get the actual data from the sensor
+        //get the actual mag data from the sensor
         self.sensor_interface.read_block(
             REG_MAG_DATA_START,
             &mut self.block_buf[..XYZ_DATA_LEN],
@@ -268,4 +252,57 @@ where
         //TODO do cross-axis flow calibration?
         Ok(sample_i16)
     }
+
+    /// Read temperature from device
+    /// Result is degrees Celsius
+    pub fn get_temperature(
+        &mut self,
+    ) -> Result<i16, crate::Error<CommE, PinE>> {
+        const TEMP_DATA_LEN: usize = 2;
+
+        self.sensor_interface.read_block(
+            REG_TEMP_OUTPUT_MSB,
+            &mut self.block_buf[..TEMP_DATA_LEN],
+        )?;
+
+        //TODO datasheet is not clear whether the temp can go negative
+        // Temperature=(MSB*2^8+LSB)/(2^4*8)+25in C
+        let celsius = (((self.block_buf[0] as i16) * 256)
+            + (self.block_buf[1] as i16))
+            / 128
+            + 25;
+        Ok(celsius)
+    }
 }
+
+const REG_CONFIG_A: u8 = 0x00;
+const REG_CONFIG_B: u8 = 0x01;
+const REG_CONFIG_C: u8 = 0x02;
+
+/// X-axis output value register
+const REG_DATA_X: u8 = 0x03;
+// Y-axis output value register
+// const REG_DATA_Y:u8 = 0x05;
+// Z-axis output value register
+// const REG_DATA_Z:u8	= 0x07;
+
+// const REG_STATUS:u8 = 0x09;
+
+/// Register to read out all three dimensions of mag data
+const REG_MAG_DATA_START: u8 = REG_DATA_X;
+
+/// Identification Register A
+const REG_ID_A: u8 = 0x0A;
+// Identification Register B
+// const REG_ID_B: u8 = 0x0B;
+// Identification Register C
+// const REG_ID_C: u8 = 0x0C;
+
+/// Temperature outputs, HMC5983
+const REG_TEMP_OUTPUT_MSB: u8 = 0x31;
+// const REG_TEMP_OUTPUT_LSB: u8 = 0x32;
+
+// Status Register 2
+// const REG_STATUS2: u8 = 0x09;
+
+const BLOCK_BUF_LEN: usize = 32;
