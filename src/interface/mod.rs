@@ -1,3 +1,8 @@
+/*
+Copyright (c) 2020 Todd Stellanova
+LICENSE: BSD3 (see LICENSE file)
+*/
+
 pub mod spi;
 pub use self::spi::SpiInterface;
 

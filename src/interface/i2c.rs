@@ -1,3 +1,8 @@
+/*
+Copyright (c) 2020 Todd Stellanova
+LICENSE: BSD3 (see LICENSE file)
+*/
+
 use crate::interface::SensorInterface;
 use crate::Error;
 use embedded_hal as hal;
