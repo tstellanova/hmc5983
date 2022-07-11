@@ -89,9 +89,7 @@ pub enum MeasurementModeSetting {
 }
 
 pub struct HMC5983<I2C> {
-    pub(crate) i2c: I2C,
-    /// Buffer for reads and writes to the sensor
-    block_buf: [u8; BLOCK_BUF_LEN],
+    i2c: I2C,
 }
 
 impl<I2C, CommE> HMC5983<I2C>
@@ -102,10 +100,7 @@ where
     CommE: core::fmt::Debug,
 {
     pub fn new(i2c: I2C) -> Self {
-        Self {
-            i2c,
-            block_buf: [0; BLOCK_BUF_LEN],
-        }
+        Self { i2c }
     }
 
     pub fn init(
@@ -162,17 +157,12 @@ where
                                            //read the product identifiers
         let mut buf = [0u8; 3];
         self.read_block(REG_ID_A, &mut buf)?;
-        if self.block_buf[0] != EXPECTED_PROD_ID_A
-            || self.block_buf[1] != EXPECTED_PROD_ID_B
-            || self.block_buf[2] != EXPECTED_PROD_ID_C
+        if buf[0] != EXPECTED_PROD_ID_A
+            || buf[1] != EXPECTED_PROD_ID_B
+            || buf[2] != EXPECTED_PROD_ID_C
         {
             #[cfg(feature = "rttdebug")]
-            rprintln!(
-                "bad ID block: {},{},{}",
-                self.block_buf[0],
-                self.block_buf[1],
-                self.block_buf[2]
-            );
+            rprintln!("bad ID block: {},{},{}", buf[0], buf[1], buf[2]);
 
             return Err(Error::UnknownChipId);
         }
@@ -228,7 +218,7 @@ where
     fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE>> {
         let mut buf = [0u8; 1];
         self.read_block(reg, &mut buf)?;
-        Ok(self.block_buf[0])
+        Ok(buf[0])
     }
 
     /// Verify that a magnetometer reading is within the expected range.
@@ -261,9 +251,9 @@ where
         //get the actual mag data from the sensor
         self.read_block(REG_MAG_DATA_START, &mut buf)?;
         let sample_i16 = [
-            Self::raw_reading_to_i16(&self.block_buf, 0),
-            Self::raw_reading_to_i16(&self.block_buf, 2),
-            Self::raw_reading_to_i16(&self.block_buf, 4),
+            Self::raw_reading_to_i16(&buf, 0),
+            Self::raw_reading_to_i16(&buf, 2),
+            Self::raw_reading_to_i16(&buf, 4),
         ];
 
         // if !Self::reading_in_range(&sample_i16) {
@@ -286,10 +276,7 @@ where
 
         //TODO datasheet is not clear whether the temp can go negative
         // Temperature=(MSB*2^8+LSB)/(2^4*8)+25in C
-        let celsius = (((self.block_buf[0] as i16) * 256)
-            + (self.block_buf[1] as i16))
-            / 128
-            + 25;
+        let celsius = (((buf[0] as i16) * 256) + (buf[1] as i16)) / 128 + 25;
         Ok(celsius)
     }
 }
