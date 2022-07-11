@@ -8,9 +8,9 @@ LICENSE: BSD3 (see LICENSE file)
 #[cfg(feature = "rttdebug")]
 use panic_rtt_core::rprintln;
 
+use defmt::{debug, info, Debug2Format, Format};
 use embedded_hal as hal;
 use hal::blocking::delay::DelayMs;
-
 // #[cfg(feature = "rttdebug")]
 // use panic_rtt_core::rprintln;
 
@@ -87,7 +87,7 @@ pub enum MeasurementModeSetting {
     /// Temperature sensor only -- unsupported on HMC5883
     TemperatureOnly = 0b11,
 }
-
+#[derive(Debug, Format)]
 pub struct HMC5983<I2C> {
     i2c: I2C,
 }
@@ -107,6 +107,7 @@ where
         &mut self,
         delay_source: &mut impl DelayMs<u8>,
     ) -> Result<(), crate::Error<CommE>> {
+        defmt::info!("Into init in driver");
         self.reset(delay_source)
     }
     fn write_reg(&mut self, reg: u8, val: u8) -> Result<(), Error<CommE>> {
@@ -130,9 +131,13 @@ where
         // rprintln!("read_block: 0x{:0x} [{}]", reg, recv_buf.len());
 
         let cmd_buf = [reg];
+        info!("write read reached");
+        //defmt::info!("{:#?}", Debug2Format(&self.i2c));
+
         self.i2c
             .write_read(I2C_ADDRESS, &cmd_buf, recv_buf)
             .map_err(Error::Comm)?;
+        info!("after write read");
 
         // #[cfg(feature = "rttdebug")]
         // rprintln!("recv_buf: {:?}", &recv_buf);
@@ -144,8 +149,13 @@ where
         delay_source: &mut impl DelayMs<u8>,
     ) -> Result<(), crate::Error<CommE>> {
         //wakeup the chip
+        defmt::info!("Into reset in the driver");
         for reg in 0x00..0x0D {
-            let _val = self.read_reg(reg)?;
+            defmt::info!("Let reg {}", reg);
+
+            let val = self.read_reg(reg)?;
+            defmt::info!("Let val {}", val);
+
             #[cfg(feature = "rttdebug")]
             rprintln!("0x{:0x} : {} ", reg, _val);
         }
@@ -217,7 +227,10 @@ where
     /// Read a single register
     fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE>> {
         let mut buf = [0u8; 1];
+        info!("Into read_reg");
         self.read_block(reg, &mut buf)?;
+        info!("After read block");
+
         Ok(buf[0])
     }
 
