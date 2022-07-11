@@ -8,19 +8,19 @@ LICENSE: BSD3 (see LICENSE file)
 #[cfg(feature = "rttdebug")]
 use panic_rtt_core::rprintln;
 
-use crate::interface::SensorInterface;
 use embedded_hal as hal;
 use hal::blocking::delay::DelayMs;
 
-pub mod interface;
+// #[cfg(feature = "rttdebug")]
+// use panic_rtt_core::rprintln;
+
+const I2C_ADDRESS: u8 = 0x1E;
 
 /// Errors in this crate
 #[derive(Debug)]
-pub enum Error<CommE, PinE> {
+pub enum Error<CommE> {
     /// Sensor communication error
     Comm(CommE),
-    /// Pin setting error
-    Pin(PinE),
 
     /// Sensor reading out of range
     OutOfRange,
@@ -88,19 +88,22 @@ pub enum MeasurementModeSetting {
     TemperatureOnly = 0b11,
 }
 
-pub struct HMC5983<SI> {
-    pub(crate) sensor_interface: SI,
+pub struct HMC5983<I2C> {
+    pub(crate) i2c: I2C,
     /// Buffer for reads and writes to the sensor
     block_buf: [u8; BLOCK_BUF_LEN],
 }
 
-impl<SI, CommE, PinE> HMC5983<SI>
+impl<I2C, CommE> HMC5983<I2C>
 where
-    SI: SensorInterface<InterfaceError = crate::Error<CommE, PinE>>,
+    I2C: hal::blocking::i2c::Write<Error = CommE>
+        + hal::blocking::i2c::Read<Error = CommE>
+        + hal::blocking::i2c::WriteRead<Error = CommE>,
+    CommE: core::fmt::Debug,
 {
-    pub fn new_with_interface(sensor_interface: SI) -> Self {
+    pub fn new(i2c: I2C) -> Self {
         Self {
-            sensor_interface,
+            i2c,
             block_buf: [0; BLOCK_BUF_LEN],
         }
     }
@@ -108,14 +111,43 @@ where
     pub fn init(
         &mut self,
         delay_source: &mut impl DelayMs<u8>,
-    ) -> Result<(), crate::Error<CommE, PinE>> {
+    ) -> Result<(), crate::Error<CommE>> {
         self.reset(delay_source)
+    }
+    fn write_reg(&mut self, reg: u8, val: u8) -> Result<(), Error<CommE>> {
+        let write_buf = [reg, val];
+
+        // #[cfg(feature = "rttdebug")]
+        // rprintln!("write: {:?}",&write_buf);
+
+        self.i2c
+            .write(I2C_ADDRESS, &write_buf)
+            .map_err(Error::Comm)?;
+        Ok(())
+    }
+
+    fn read_block(
+        &mut self,
+        reg: u8,
+        recv_buf: &mut [u8],
+    ) -> Result<(), Error<CommE>> {
+        // #[cfg(feature = "rttdebug")]
+        // rprintln!("read_block: 0x{:0x} [{}]", reg, recv_buf.len());
+
+        let cmd_buf = [reg];
+        self.i2c
+            .write_read(I2C_ADDRESS, &cmd_buf, recv_buf)
+            .map_err(Error::Comm)?;
+
+        // #[cfg(feature = "rttdebug")]
+        // rprintln!("recv_buf: {:?}", &recv_buf);
+        Ok(())
     }
 
     fn reset(
         &mut self,
         delay_source: &mut impl DelayMs<u8>,
-    ) -> Result<(), crate::Error<CommE, PinE>> {
+    ) -> Result<(), crate::Error<CommE>> {
         //wakeup the chip
         for reg in 0x00..0x0D {
             let _val = self.read_reg(reg)?;
@@ -128,8 +160,8 @@ where
         const EXPECTED_PROD_ID_C: u8 = 51; //'3';
                                            //compare product ID against known product ID
                                            //read the product identifiers
-        self.sensor_interface
-            .read_block(REG_ID_A, &mut self.block_buf[..3])?;
+        let mut buf = [0u8; 3];
+        self.read_block(REG_ID_A, &mut buf)?;
         if self.block_buf[0] != EXPECTED_PROD_ID_A
             || self.block_buf[1] != EXPECTED_PROD_ID_B
             || self.block_buf[2] != EXPECTED_PROD_ID_C
@@ -154,10 +186,7 @@ where
 
         self.set_gain(GainSetting::Gain0820)?;
         // (Continuous-measurement mode)
-        self.sensor_interface.write_reg(
-            REG_CONFIG_C,
-            MeasurementModeSetting::NormalMode as u8,
-        )?;
+        self.write_reg(REG_CONFIG_C, MeasurementModeSetting::NormalMode as u8)?;
         delay_source.delay_ms(100);
 
         Ok(())
@@ -167,9 +196,9 @@ where
     pub fn set_gain(
         &mut self,
         gain: GainSetting,
-    ) -> Result<(), crate::Error<CommE, PinE>> {
+    ) -> Result<(), crate::Error<CommE>> {
         let gain_val: u8 = gain as u8;
-        self.sensor_interface.write_reg(REG_CONFIG_B, gain_val)?;
+        self.write_reg(REG_CONFIG_B, gain_val)?;
 
         let confirm_val = self.read_reg(REG_CONFIG_B)?;
         if confirm_val != gain_val {
@@ -187,18 +216,18 @@ where
         odr: OdrSetting,
         averaging: SampleAvgSetting,
         temp_enabled: bool,
-    ) -> Result<(), crate::Error<CommE, PinE>> {
-        let new_val = (if temp_enabled { (1 << 7) } else { 0 })
+    ) -> Result<(), crate::Error<CommE>> {
+        let new_val = (if temp_enabled { 1 << 7 } else { 0 })
             & ((averaging as u8) << 6)
             & ((odr as u8) << 4)
             & ((mode as u8) << 2);
-        self.sensor_interface.write_reg(REG_CONFIG_A, new_val)
+        self.write_reg(REG_CONFIG_A, new_val)
     }
 
     /// Read a single register
-    fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE, PinE>> {
-        self.sensor_interface
-            .read_block(reg, &mut self.block_buf[..1])?;
+    fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE>> {
+        let mut buf = [0u8; 1];
+        self.read_block(reg, &mut buf)?;
         Ok(self.block_buf[0])
     }
 
@@ -226,16 +255,11 @@ where
         val
     }
 
-    pub fn get_mag_vector(
-        &mut self,
-    ) -> Result<[i16; 3], crate::Error<CommE, PinE>> {
+    pub fn get_mag_vector(&mut self) -> Result<[i16; 3], crate::Error<CommE>> {
         const XYZ_DATA_LEN: usize = 6;
-
+        let mut buf = [0u8; XYZ_DATA_LEN];
         //get the actual mag data from the sensor
-        self.sensor_interface.read_block(
-            REG_MAG_DATA_START,
-            &mut self.block_buf[..XYZ_DATA_LEN],
-        )?;
+        self.read_block(REG_MAG_DATA_START, &mut buf)?;
         let sample_i16 = [
             Self::raw_reading_to_i16(&self.block_buf, 0),
             Self::raw_reading_to_i16(&self.block_buf, 2),
@@ -255,15 +279,10 @@ where
 
     /// Read temperature from device
     /// Result is degrees Celsius
-    pub fn get_temperature(
-        &mut self,
-    ) -> Result<i16, crate::Error<CommE, PinE>> {
+    pub fn get_temperature(&mut self) -> Result<i16, crate::Error<CommE>> {
         const TEMP_DATA_LEN: usize = 2;
-
-        self.sensor_interface.read_block(
-            REG_TEMP_OUTPUT_MSB,
-            &mut self.block_buf[..TEMP_DATA_LEN],
-        )?;
+        let mut buf = [0; TEMP_DATA_LEN];
+        self.read_block(REG_TEMP_OUTPUT_MSB, &mut buf)?;
 
         //TODO datasheet is not clear whether the temp can go negative
         // Temperature=(MSB*2^8+LSB)/(2^4*8)+25in C
