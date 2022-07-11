@@ -310,5 +310,3 @@ const REG_TEMP_OUTPUT_MSB: u8 = 0x31;
 
 // Status Register 2
 // const REG_STATUS2: u8 = 0x09;
-
-const BLOCK_BUF_LEN: usize = 32;
