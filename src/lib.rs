@@ -5,10 +5,7 @@ LICENSE: BSD3 (see LICENSE file)
 
 #![no_std]
 
-#[cfg(feature = "rttdebug")]
-use panic_rtt_core::rprintln;
-
-use defmt::{debug, info, Debug2Format, Format};
+use defmt::{debug, info, Format};
 use embedded_hal as hal;
 use hal::blocking::delay::DelayMs;
 // #[cfg(feature = "rttdebug")]
@@ -107,14 +104,10 @@ where
         &mut self,
         delay_source: &mut impl DelayMs<u8>,
     ) -> Result<(), crate::Error<CommE>> {
-        defmt::info!("Into init in driver");
         self.reset(delay_source)
     }
     fn write_reg(&mut self, reg: u8, val: u8) -> Result<(), Error<CommE>> {
         let write_buf = [reg, val];
-
-        // #[cfg(feature = "rttdebug")]
-        // rprintln!("write: {:?}",&write_buf);
 
         self.i2c
             .write(I2C_ADDRESS, &write_buf)
@@ -127,20 +120,14 @@ where
         reg: u8,
         recv_buf: &mut [u8],
     ) -> Result<(), Error<CommE>> {
-        // #[cfg(feature = "rttdebug")]
-        // rprintln!("read_block: 0x{:0x} [{}]", reg, recv_buf.len());
 
         let cmd_buf = [reg];
-        info!("write read reached");
-        //defmt::info!("{:#?}", Debug2Format(&self.i2c));
 
         self.i2c
             .write_read(I2C_ADDRESS, &cmd_buf, recv_buf)
             .map_err(Error::Comm)?;
-        info!("after write read");
 
-        // #[cfg(feature = "rttdebug")]
-        // rprintln!("recv_buf: {:?}", &recv_buf);
+
         Ok(())
     }
 
@@ -149,15 +136,8 @@ where
         delay_source: &mut impl DelayMs<u8>,
     ) -> Result<(), crate::Error<CommE>> {
         //wakeup the chip
-        defmt::info!("Into reset in the driver");
         for reg in 0x00..0x0D {
-            defmt::info!("Let reg {}", reg);
-
             let val = self.read_reg(reg)?;
-            defmt::info!("Let val {}", val);
-
-            #[cfg(feature = "rttdebug")]
-            rprintln!("0x{:0x} : {} ", reg, _val);
         }
 
         const EXPECTED_PROD_ID_A: u8 = 72; //'H';
@@ -171,9 +151,6 @@ where
             || buf[1] != EXPECTED_PROD_ID_B
             || buf[2] != EXPECTED_PROD_ID_C
         {
-            #[cfg(feature = "rttdebug")]
-            rprintln!("bad ID block: {},{},{}", buf[0], buf[1], buf[2]);
-
             return Err(Error::UnknownChipId);
         }
 
@@ -202,8 +179,7 @@ where
 
         let confirm_val = self.read_reg(REG_CONFIG_B)?;
         if confirm_val != gain_val {
-            #[cfg(feature = "rttdebug")]
-            rprintln!("gain bad: expected {} got {}", gain_val, confirm_val);
+            debug!("gain bad: expected {} got {}", gain_val, confirm_val);
             return Err(Error::Configuration);
         }
         Ok(())
@@ -227,30 +203,28 @@ where
     /// Read a single register
     fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE>> {
         let mut buf = [0u8; 1];
-        info!("Into read_reg");
         self.read_block(reg, &mut buf)?;
-        info!("After read block");
 
         Ok(buf[0])
     }
 
     /// Verify that a magnetometer reading is within the expected range.
-    // fn reading_in_range(sample: &[i16; 3]) -> bool {
-    //     /// Maximum Dynamic Range for X and Y axes (micro Teslas)
-    //     const MDR_XY_AXES: i16 = 1600;
-    //     /// Maximum Dynamic Range for Z axis (micro Teslas)
-    //     const MDR_Z_AXIS: i16 = 2500;
-    //     /// Resolution (micro Teslas per LSB)
-    //     const RESO_PER_BIT: f32 = 0.3;
-    //     const MAX_VAL_XY: i16 =
-    //         (((MDR_XY_AXES as f32) / RESO_PER_BIT) as i16) + 1;
-    //     const MAX_VAL_Z: i16 =
-    //         (((MDR_Z_AXIS as f32) / RESO_PER_BIT) as i16) + 1;
-    //
-    //     sample[0].abs() < MAX_VAL_XY
-    //         && sample[1].abs() < MAX_VAL_XY
-    //         && sample[2].abs() < MAX_VAL_Z
-    // }
+    fn reading_in_range(sample: &[i16; 3]) -> bool {
+        /// Maximum Dynamic Range for X and Y axes (micro Teslas)
+        const MDR_XY_AXES: i16 = 1600;
+        /// Maximum Dynamic Range for Z axis (micro Teslas)
+        const MDR_Z_AXIS: i16 = 2500;
+        /// Resolution (micro Teslas per LSB)
+        const RESO_PER_BIT: f32 = 0.3;
+        const MAX_VAL_XY: i16 =
+            (((MDR_XY_AXES as f32) / RESO_PER_BIT) as i16) + 1;
+        const MAX_VAL_Z: i16 =
+            (((MDR_Z_AXIS as f32) / RESO_PER_BIT) as i16) + 1;
+    
+        sample[0].abs() < MAX_VAL_XY
+            && sample[1].abs() < MAX_VAL_XY
+            && sample[2].abs() < MAX_VAL_Z
+    }
 
     /// Combine high and low bytes of i16 mag value
     fn raw_reading_to_i16(buf: &[u8], idx: usize) -> i16 {
@@ -270,8 +244,7 @@ where
         ];
 
         // if !Self::reading_in_range(&sample_i16) {
-        //     #[cfg(feature = "rttdebug")]
-        //     rprintln!("bad reading?");
+        //     debug!("bad reading?");
         //
         //     return Err(Error::OutOfRange);
         // }
