@@ -5,12 +5,12 @@ LICENSE: BSD3 (see LICENSE file)
 
 #![no_std]
 
-use defmt::{debug};
+use defmt::{debug, Format};
 use embedded_hal_async::{i2c::I2c, delay::DelayUs};
 const I2C_ADDRESS: u8 = 0x1E;
 
 /// Errors in this crate
-#[derive(Debug)]
+#[derive(Debug, Format)]
 pub enum Error<CommE> {
     /// Sensor communication error
     Comm(CommE),
@@ -240,11 +240,11 @@ where
             Self::raw_reading_to_i16(&buf, 4),
         ];
 
-        if !Self::reading_in_range(&sample_i16) {
-            debug!("bad reading?");
+        // if !Self::reading_in_range(&sample_i16) {
+        //     debug!("bad reading?");
         
-            return Err(Error::OutOfRange);
-        }
+        //     return Err(Error::OutOfRange);
+        // }
 
         //TODO do cross-axis flow calibration?
         Ok(sample_i16)
