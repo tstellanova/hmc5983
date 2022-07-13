@@ -5,12 +5,8 @@ LICENSE: BSD3 (see LICENSE file)
 
 #![no_std]
 
-use defmt::{debug, info, Format};
-use embedded_hal as hal;
-use hal::blocking::delay::DelayMs;
-// #[cfg(feature = "rttdebug")]
-// use panic_rtt_core::rprintln;
-
+use defmt::{debug};
+use embedded_hal_async::{i2c::I2c, delay::DelayUs};
 const I2C_ADDRESS: u8 = 0x1E;
 
 /// Errors in this crate
@@ -84,38 +80,38 @@ pub enum MeasurementModeSetting {
     /// Temperature sensor only -- unsupported on HMC5883
     TemperatureOnly = 0b11,
 }
-#[derive(Debug, Format)]
+#[derive(Debug)]
 pub struct HMC5983<I2C> {
     i2c: I2C,
 }
 
 impl<I2C, CommE> HMC5983<I2C>
 where
-    I2C: hal::blocking::i2c::Write<Error = CommE>
-        + hal::blocking::i2c::Read<Error = CommE>
-        + hal::blocking::i2c::WriteRead<Error = CommE>,
+    I2C: I2c<Error = CommE>, 
     CommE: core::fmt::Debug,
 {
     pub fn new(i2c: I2C) -> Self {
         Self { i2c }
     }
 
-    pub fn init(
+    pub async fn init(
         &mut self,
-        delay_source: &mut impl DelayMs<u8>,
+        delay_source: &mut impl DelayUs,
     ) -> Result<(), crate::Error<CommE>> {
-        self.reset(delay_source)
+        self.reset(delay_source).await
     }
-    fn write_reg(&mut self, reg: u8, val: u8) -> Result<(), Error<CommE>> {
+
+    async fn write_reg(&mut self, reg: u8, val: u8) -> Result<(), Error<CommE>> {
         let write_buf = [reg, val];
 
         self.i2c
             .write(I2C_ADDRESS, &write_buf)
+            .await
             .map_err(Error::Comm)?;
         Ok(())
     }
 
-    fn read_block(
+    async fn read_block(
         &mut self,
         reg: u8,
         recv_buf: &mut [u8],
@@ -125,19 +121,20 @@ where
 
         self.i2c
             .write_read(I2C_ADDRESS, &cmd_buf, recv_buf)
+            .await
             .map_err(Error::Comm)?;
 
 
         Ok(())
     }
 
-    fn reset(
+    async fn reset(
         &mut self,
-        delay_source: &mut impl DelayMs<u8>,
+        delay_source: &mut impl DelayUs,
     ) -> Result<(), crate::Error<CommE>> {
         //wakeup the chip
         for reg in 0x00..0x0D {
-            let val = self.read_reg(reg)?;
+            let _val = self.read_reg(reg).await?;
         }
 
         const EXPECTED_PROD_ID_A: u8 = 72; //'H';
@@ -146,7 +143,7 @@ where
                                            //compare product ID against known product ID
                                            //read the product identifiers
         let mut buf = [0u8; 3];
-        self.read_block(REG_ID_A, &mut buf)?;
+        self.read_block(REG_ID_A, &mut buf).await?;
         if buf[0] != EXPECTED_PROD_ID_A
             || buf[1] != EXPECTED_PROD_ID_B
             || buf[2] != EXPECTED_PROD_ID_C
@@ -159,25 +156,25 @@ where
             OdrSetting::Odr30_0Hz,
             SampleAvgSetting::AvgSamples8,
             true,
-        )?;
+        ).await?;
 
-        self.set_gain(GainSetting::Gain0820)?;
+        self.set_gain(GainSetting::Gain0820).await?;
         // (Continuous-measurement mode)
-        self.write_reg(REG_CONFIG_C, MeasurementModeSetting::NormalMode as u8)?;
+        self.write_reg(REG_CONFIG_C, MeasurementModeSetting::NormalMode as u8).await?;
         delay_source.delay_ms(100);
 
         Ok(())
     }
 
     /// Set the mag gain, which determines the range
-    pub fn set_gain(
+    pub async fn set_gain(
         &mut self,
         gain: GainSetting,
     ) -> Result<(), crate::Error<CommE>> {
         let gain_val: u8 = gain as u8;
-        self.write_reg(REG_CONFIG_B, gain_val)?;
+        self.write_reg(REG_CONFIG_B, gain_val).await?;
 
-        let confirm_val = self.read_reg(REG_CONFIG_B)?;
+        let confirm_val = self.read_reg(REG_CONFIG_B).await?;
         if confirm_val != gain_val {
             debug!("gain bad: expected {} got {}", gain_val, confirm_val);
             return Err(Error::Configuration);
@@ -186,7 +183,7 @@ where
     }
 
     /// Set all of the Config A register settings
-    pub fn set_all_config_a(
+    pub async fn set_all_config_a(
         &mut self,
         mode: MeasurementModeSetting,
         odr: OdrSetting,
@@ -197,13 +194,13 @@ where
             & ((averaging as u8) << 6)
             & ((odr as u8) << 4)
             & ((mode as u8) << 2);
-        self.write_reg(REG_CONFIG_A, new_val)
+        self.write_reg(REG_CONFIG_A, new_val).await
     }
 
     /// Read a single register
-    fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE>> {
+    async fn read_reg(&mut self, reg: u8) -> Result<u8, crate::Error<CommE>> {
         let mut buf = [0u8; 1];
-        self.read_block(reg, &mut buf)?;
+        self.read_block(reg, &mut buf).await?;
 
         Ok(buf[0])
     }
@@ -232,22 +229,22 @@ where
         val
     }
 
-    pub fn get_mag_vector(&mut self) -> Result<[i16; 3], crate::Error<CommE>> {
+    pub async fn get_mag_vector(&mut self) -> Result<[i16; 3], crate::Error<CommE>> {
         const XYZ_DATA_LEN: usize = 6;
         let mut buf = [0u8; XYZ_DATA_LEN];
         //get the actual mag data from the sensor
-        self.read_block(REG_MAG_DATA_START, &mut buf)?;
+        self.read_block(REG_MAG_DATA_START, &mut buf).await?;
         let sample_i16 = [
             Self::raw_reading_to_i16(&buf, 0),
             Self::raw_reading_to_i16(&buf, 2),
             Self::raw_reading_to_i16(&buf, 4),
         ];
 
-        // if !Self::reading_in_range(&sample_i16) {
-        //     debug!("bad reading?");
-        //
-        //     return Err(Error::OutOfRange);
-        // }
+        if !Self::reading_in_range(&sample_i16) {
+            debug!("bad reading?");
+        
+            return Err(Error::OutOfRange);
+        }
 
         //TODO do cross-axis flow calibration?
         Ok(sample_i16)
@@ -255,10 +252,10 @@ where
 
     /// Read temperature from device
     /// Result is degrees Celsius
-    pub fn get_temperature(&mut self) -> Result<i16, crate::Error<CommE>> {
+    pub async fn get_temperature(&mut self) -> Result<i16, crate::Error<CommE>> {
         const TEMP_DATA_LEN: usize = 2;
         let mut buf = [0; TEMP_DATA_LEN];
-        self.read_block(REG_TEMP_OUTPUT_MSB, &mut buf)?;
+        self.read_block(REG_TEMP_OUTPUT_MSB, &mut buf).await?;
 
         //TODO datasheet is not clear whether the temp can go negative
         // Temperature=(MSB*2^8+LSB)/(2^4*8)+25in C
