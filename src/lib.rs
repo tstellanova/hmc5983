@@ -161,7 +161,7 @@ where
         self.set_gain(GainSetting::Gain0820).await?;
         // (Continuous-measurement mode)
         self.write_reg(REG_CONFIG_C, MeasurementModeSetting::NormalMode as u8).await?;
-        delay_source.delay_ms(100);
+        delay_source.delay_ms(100).await;
 
         Ok(())
     }
