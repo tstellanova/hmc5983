@@ -1,7 +1,0 @@
-cargo:rustc-link-lib=static=cortex-m-rt
-cargo:rerun-if-changed=bin/thumbv7em-none-eabihf.a
-cargo:rustc-cfg=cortex_m
-cargo:rustc-cfg=armv7m
-cargo:rustc-link-search=/home/aissata/Rust/asyncrab/target/thumbv7em-none-eabihf/debug/build/cortex-m-rt-f99bcbe3f20ee37c/out
-cargo:rerun-if-changed=build.rs
-cargo:rerun-if-changed=link.x.in

@@ -1,1 +1,0 @@
-/home/aissata/Rust/hmc5883-async/examples/target/thumbv7em-none-eabihf/debug/kompass: /home/aissata/Rust/hmc5883-async/examples/src/bin/kompass.rs /home/aissata/Rust/hmc5883-async/examples/src/lib.rs /home/aissata/Rust/hmc5883-async/src/lib.rs
