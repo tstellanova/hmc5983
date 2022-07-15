@@ -29,6 +29,12 @@ You can connect to the HMC5883 through I2C:
 
 
 
+To run the example:
+
+```console
+$ cd examples
+$ cargo rb kompass
+```
 
 
 
