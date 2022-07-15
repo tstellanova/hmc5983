@@ -1,0 +1,12 @@
+/home/aissata/Rust/asyncrab/target/thumbv7em-none-eabihf/debug/deps/half-aec0bc8235d916c3.rmeta: /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/lib.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/bfloat.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/bfloat/convert.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/binary16.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/binary16/convert.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/slice.rs
+
+/home/aissata/Rust/asyncrab/target/thumbv7em-none-eabihf/debug/deps/libhalf-aec0bc8235d916c3.rlib: /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/lib.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/bfloat.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/bfloat/convert.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/binary16.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/binary16/convert.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/slice.rs
+
+/home/aissata/Rust/asyncrab/target/thumbv7em-none-eabihf/debug/deps/half-aec0bc8235d916c3.d: /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/lib.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/bfloat.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/bfloat/convert.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/binary16.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/binary16/convert.rs /home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/slice.rs
+
+/home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/lib.rs:
+/home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/bfloat.rs:
+/home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/bfloat/convert.rs:
+/home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/binary16.rs:
+/home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/binary16/convert.rs:
+/home/aissata/.cargo/registry/src/github.com-1ecc6299db9ec823/half-1.8.2/src/slice.rs:

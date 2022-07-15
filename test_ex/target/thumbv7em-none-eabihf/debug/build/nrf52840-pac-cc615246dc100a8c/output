@@ -1,0 +1,3 @@
+cargo:rustc-link-search=/home/aissata/Rust/asyncrab/target/thumbv7em-none-eabihf/debug/build/nrf52840-pac-cc615246dc100a8c/out
+cargo:rerun-if-changed=device.x
+cargo:rerun-if-changed=build.rs
