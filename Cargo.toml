@@ -1,19 +1,20 @@
 [package]
-name = "hmc5983-async"
+name = "hmc5883-async"
 version = "0.1.3"
-authors = ["Todd Stellanova <tstellanova@users.noreply.github.com>"]
+authors = ["Todd Stellanova <tstellanova@users.noreply.github.com>","Aïssata Maiga <aimaiga2@gmail.com>"]
 edition = "2018"
-description = "HMC5983 magnetometer driver for embedded hal"
+description = "HMC5883 magnetometer async driver for embedded hal"
 license = "BSD-3-Clause"
-repository = "https://github.com/tstellanova/hmc5983"
+repository = "https://github.com/Dajamante/hmc5983-async"
 categories = [
     "embedded",
     "hardware-support",
     "no-std",
+    "async"
 ]
 keywords = [
     "embedded-hal-driver",
-    "HMC5983",
+    "async",
     "HMC5883",
     "magnetometer"
 ]
@@ -21,7 +22,6 @@ readme = "README.md"
 
 [dependencies]
 defmt = "0.3.2"
-embedded-hal = { version = "0.2.3", features = ["unproven"] }
 embedded-hal-async = "0.1.0-alpha.1"
 panic-rtt-core = {version="0.1.0", optional=true}
 

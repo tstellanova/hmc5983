@@ -1,44 +1,32 @@
-# hmc5983
+# HMC5883 async driver
 
-A rust embedded-hal driver for the 
-Honeywell HMC5983 
-and similar 3-axis magnetometers
-such as the 
-HMC5883. 
+A rust embedded-hal driver for the Honeywell HMC5883. Forked from the original work of [Todd Stellanova](https://github.com/tstellanova/hmc5983) and made async.
 
-Note that some devices (HMC5983) support both I2C and SPI
-interfaces, while others (eg HMC5883, QMC5883) only
-support a single interface (I2C).
+HMC5883 only support a single interface (I2C).
 
 # Example
 
-You can connect to the HMC5983 through either I2C or SPI:
+You can connect to the HMC5883 through I2C:
 
+```rust
+    use hmc5883_async::*;
+    let mut hmc = HMC5883::new(i2c);
+
+    hmc.init(&mut Delay).await.expect("init failed");
+
+    loop {
+        if let Ok(temp) = hmc.get_temperature().await {
+            info!("Temperature: {:?}", temp);
+        }
+        match hmc.get_mag_vector().await {
+            Ok(mag) => info!("Magnitude vector: {:?}", mag),
+            Err(E) => info!("Printing Error {}", E),
+        }
+
+        Timer::after(Duration::from_secs(3)).await;
+    }
 ```
-  use hmc5983::HMC5983;
 
-  let mut mag_int = HMC5983::new_with_interface(
-        hmc5983::interface::SpiInterface::new(spi_bus1.acquire(), spi_cs_mag),
-    );
-    mag_int.init(&mut delay_source).expect("mag_int init failed");
-
-
-    let mut mag_ext = HMC5983::new_with_interface(
-        hmc5983::interface::I2cInterface::new(i2c_bus1.acquire()) );
-    mag_ext.init(&mut delay_source).expect("mag_ext init failed");
-```
-
-## Status
-
-- [x] Basic i2c setup support
-- [x] Basic spi setup support
-- [x] read of main xyz magnetometer vector
-- [ ] support for DRDY pin
-- [ ] Tests with mock embedded hal
-- [ ] Periodic configuration check (for poor i2c connections)
-- [ ] Usage example with `cortex-m` hal
-- [ ] Doc comments
-- [ ] CI
 
 
 
