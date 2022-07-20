@@ -6,7 +6,7 @@ LICENSE: BSD3 (see LICENSE file)
 #![no_std]
 
 use defmt::{debug, Format};
-use embedded_hal_async::{i2c::I2c, delay::DelayUs};
+use embedded_hal_async::{delay::DelayUs, i2c::I2c};
 const I2C_ADDRESS: u8 = 0x1E;
 
 /// Errors in this crate
@@ -87,7 +87,7 @@ pub struct HMC5983<I2C> {
 
 impl<I2C, CommE> HMC5983<I2C>
 where
-    I2C: I2c<Error = CommE>, 
+    I2C: I2c<Error = CommE>,
     CommE: core::fmt::Debug,
 {
     pub fn new(i2c: I2C) -> Self {
@@ -101,7 +101,11 @@ where
         self.reset(delay_source).await
     }
 
-    async fn write_reg(&mut self, reg: u8, val: u8) -> Result<(), Error<CommE>> {
+    async fn write_reg(
+        &mut self,
+        reg: u8,
+        val: u8,
+    ) -> Result<(), Error<CommE>> {
         let write_buf = [reg, val];
 
         self.i2c
@@ -116,14 +120,12 @@ where
         reg: u8,
         recv_buf: &mut [u8],
     ) -> Result<(), Error<CommE>> {
-
         let cmd_buf = [reg];
 
         self.i2c
             .write_read(I2C_ADDRESS, &cmd_buf, recv_buf)
             .await
             .map_err(Error::Comm)?;
-
 
         Ok(())
     }
@@ -152,15 +154,20 @@ where
         }
 
         self.set_all_config_a(
-            MeasurementModeSetting::NormalMode,
+            MeasurementModeSetting::NegativeBias,
             OdrSetting::Odr30_0Hz,
             SampleAvgSetting::AvgSamples8,
             true,
-        ).await?;
+        )
+        .await?;
 
         self.set_gain(GainSetting::Gain0820).await?;
         // (Continuous-measurement mode)
-        self.write_reg(REG_CONFIG_C, MeasurementModeSetting::NormalMode as u8).await?;
+        self.write_reg(
+            REG_CONFIG_C,
+            MeasurementModeSetting::NegativeBias as u8,
+        )
+        .await?;
         delay_source.delay_ms(100).await;
 
         Ok(())
@@ -217,7 +224,7 @@ where
             (((MDR_XY_AXES as f32) / RESO_PER_BIT) as i16) + 1;
         const MAX_VAL_Z: i16 =
             (((MDR_Z_AXIS as f32) / RESO_PER_BIT) as i16) + 1;
-    
+
         sample[0].abs() < MAX_VAL_XY
             && sample[1].abs() < MAX_VAL_XY
             && sample[2].abs() < MAX_VAL_Z
@@ -225,11 +232,13 @@ where
 
     /// Combine high and low bytes of i16 mag value
     fn raw_reading_to_i16(buf: &[u8], idx: usize) -> i16 {
-        let val: i16 = (buf[idx] as i16) | ((buf[idx + 1] as i16) << 8);
+        let val: i16 = (buf[idx + 1] as i16) | ((buf[idx] as i16) << 8);
         val
     }
 
-    pub async fn get_mag_vector(&mut self) -> Result<[i16; 3], crate::Error<CommE>> {
+    pub async fn get_mag_vector(
+        &mut self,
+    ) -> Result<[i16; 3], crate::Error<CommE>> {
         const XYZ_DATA_LEN: usize = 6;
         let mut buf = [0u8; XYZ_DATA_LEN];
         //get the actual mag data from the sensor
@@ -242,7 +251,7 @@ where
 
         // if !Self::reading_in_range(&sample_i16) {
         //     debug!("bad reading?");
-        
+
         //     return Err(Error::OutOfRange);
         // }
 
@@ -252,7 +261,9 @@ where
 
     /// Read temperature from device
     /// Result is degrees Celsius
-    pub async fn get_temperature(&mut self) -> Result<i16, crate::Error<CommE>> {
+    pub async fn get_temperature(
+        &mut self,
+    ) -> Result<i16, crate::Error<CommE>> {
         const TEMP_DATA_LEN: usize = 2;
         let mut buf = [0; TEMP_DATA_LEN];
         self.read_block(REG_TEMP_OUTPUT_MSB, &mut buf).await?;
