@@ -222,7 +222,7 @@ where
 
     /// Combine high and low bytes of i16 mag value
     fn raw_reading_to_i16(buf: &[u8], idx: usize) -> i16 {
-        let val: i16 = (buf[idx] as i16) | ((buf[idx + 1] as i16) << 8);
+        let val: i16 = ((buf[idx] as i16) << 8) | (buf[idx + 1] as i16);
         val
     }
 
